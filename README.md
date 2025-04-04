@@ -18,12 +18,16 @@
 - **coarse-grained**: e.g. text-to-motion and motion captioning (upper block) 
 - **fine-grained**: e.g. motion-to-detailed text and motion localization (bottom block).
 
-![teaser](assets/teaser.png)
+<div align="center">    
+  <img src="./assets/teaser.png" alt="teaser" align=center, height=500 />
+</div>
 
 
 To achieve this, we propose multi-granularity training scheme with novel auxiliary tasks captures motion-related features at different levels, improving understanding across a wide range of tasks. Specifically, we pretrain the model with a total of **28** distinct motion-relevant tasks, including **12** existing classical **coarse-grained** tasks and **16** newly proposed **fine-grained** ones. Here, we display examples of prompt templates for a part of tasks used during training.
 
-![example_tasks](assets/tasks_template.png)
+<div align="center">    
+  <img src="./assets/tasks_template.png" alt="tasks_template" align=center />
+</div>
 
 
 
@@ -31,12 +35,15 @@ To achieve this, we propose multi-granularity training scheme with novel auxilia
 We display some novel applications of our MG-MotionLLM.
 - **text-driven fine-grained motion editing**: Temporal Editing (left), Spatial Editing (middle), and Spatial-Temporal Editing (right).
 
-![editing_results](assets/editing.png)
+<div align="center">    
+  <img src="./assets/editing.png" alt="edit" align=center />
+</div>
 
 - **fine-grained captioning** of both whole (up) and partial (bottom) motion sequences, and **motion localization via fine-grained textual description** (middle).
 
-![editing_results](assets/novel_apps.png)
-
+<div align="center">    
+  <img src="./assets/novel_apps.png" alt="novel_apps" align=center />
+</div>
 
 
 
