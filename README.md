@@ -54,6 +54,15 @@ We display some novel applications of our MG-MotionLLM.
 If you use our code in your research, kindly cite our work:
 
 ```bibtex
+@InProceedings{Wu_2025_CVPR,
+    author    = {Wu, Bizhu and Xie, Jinheng and Shen, Keming and Kong, Zhe and Ren, Jianfeng and Bai, Ruibin and Qu, Rong and Shen, Linlin},
+    title     = {MG-MotionLLM: A Unified Framework for Motion Comprehension and Generation across Multiple Granularities},
+    booktitle = {Proceedings of the Computer Vision and Pattern Recognition Conference (CVPR)},
+    month     = {June},
+    year      = {2025},
+    pages     = {27849-27858}
+}
+
 @article{wu2025mg,
   title={MG-MotionLLM: A Unified Framework for Motion Comprehension and Generation across Multiple Granularities},
   author={Wu, Bizhu and Xie, Jinheng and Shen, Keming and Kong, Zhe and Ren, Jianfeng and Bai, Ruibin and Qu, Rong and Shen, Linlin},
