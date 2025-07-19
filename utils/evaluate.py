@@ -4,6 +4,9 @@ import numpy as np
 import torch
 from scipy import linalg
 from tqdm import tqdm
+import spacy
+from nlgmetricverse import NLGMetricverse, load_metric
+from bert_score import score
 
 
 
@@ -220,6 +223,140 @@ def evaluation(val_loader, net, model, logger, tokenizer, eval_wrapper, instruct
 
 
 
+@torch.no_grad()
+def evaluation_m2t(val_loader, vqvae, model, logger, tokenizer, w_vectorizer, eval_wrapper, instruction, max_new_tokens):
+    model.eval()
+
+    nb_sample = 0
+
+    generated_texts_list = []
+    all_captions_list = []
+
+    R_precision_real = 0
+    R_precision = 0
+    matching_score_real = 0
+    matching_score_pred = 0
+
+    max_text_len = 20
+
+    nlp = spacy.load('en_core_web_sm')
+
+    for batch in tqdm(val_loader):
+        word_embeddings, pos_one_hots, clip_text, sent_len, pose, m_length, _, name, all_captions = batch
+
+        bs, seq = pose.shape[:2]
+        pred_pos_one_hots = torch.zeros(pos_one_hots.size())
+        pred_word_embeddings = torch.zeros(word_embeddings.size())
+        pred_sent_len_list = torch.zeros(sent_len.size())
+
+
+        for k in range(bs):
+            # tokenize motion
+            motion = pose[k].clone()
+            motion = motion[:m_length[k]]
+            motion = motion.unsqueeze(0).cuda()
+            tokenized_motion = vqvae.encode(motion)
+            tokenized_motion = tokenized_motion.cpu().numpy()[0]
+            tokenized_motion = tokenized_motion.reshape(-1).tolist()
+
+            motion_string = '<Motion Tokens>'
+            for token in tokenized_motion:
+                motion_string += ('<' + str(token) + '>')
+            motion_string += '</Motion Tokens>'
+
+            prompt = instruction + motion_string
+
+            input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to('cuda', dtype=torch.long)
+            outputs = model.generate(
+                input_ids,
+                max_length=max_new_tokens,
+                num_beams=1,
+                do_sample=False,
+            )
+            output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            output_text = output_text.strip('"')
+
+            generated_texts_list.append(output_text)
+            all_captions_list.append([all_captions[0][k], all_captions[1][k], all_captions[2][k]])
+
+
+
+            # Generated Text needs to be processed as word_embeddings and pos_one_hots
+            word_list, pos_list = _process_text(output_text.strip(), nlp)
+            t_tokens = ['%s/%s' % (word_list[i], pos_list[i]) for i in range(len(word_list))]
+
+            if len(t_tokens) < max_text_len:
+                # pad with "unk"
+                tokens = ['sos/OTHER'] + t_tokens + ['eos/OTHER']
+                pred_sent_len = len(tokens)
+                tokens = tokens + ['unk/OTHER'] * (max_text_len + 2 - pred_sent_len)
+            else:
+                # crop
+                tokens = t_tokens[:max_text_len]
+                tokens = ['sos/OTHER'] + tokens + ['eos/OTHER']
+                pred_sent_len = len(tokens)
+            pred_pos_one_hots_a_sample = []
+            pred_word_embeddings_a_sample = []
+            for token in tokens:
+                word_emb, pos_oh = w_vectorizer[token]
+                pred_pos_one_hots_a_sample.append(pos_oh[None, :])
+                pred_word_embeddings_a_sample.append(word_emb[None, :])
+            pred_pos_one_hots_a_sample = np.concatenate(pred_pos_one_hots_a_sample, axis=0)
+            pred_word_embeddings_a_sample = np.concatenate(pred_word_embeddings_a_sample, axis=0)
+
+            pred_pos_one_hots[k] = torch.from_numpy(pred_pos_one_hots_a_sample)
+            pred_word_embeddings[k] = torch.from_numpy(pred_word_embeddings_a_sample)
+            pred_sent_len_list[k] = pred_sent_len
+
+
+
+        pred_pos_one_hots = pred_pos_one_hots.cuda()
+        pred_word_embeddings = pred_word_embeddings.cuda()
+        pred_sent_len_list = pred_sent_len_list.cuda()
+
+        sorted_pred_sent_len_list, indices = pred_sent_len_list.sort(descending=True)
+        sorted_pred_pos_one_hots = pred_pos_one_hots[indices]
+        sorted_pred_word_embeddings = pred_word_embeddings[indices]
+
+        sorted_pose = pose.clone().cuda()[indices]
+        sorted_m_length = m_length.clone().cuda()[indices]
+
+        et_pred, em_pred = eval_wrapper.get_co_embeddings(sorted_pred_word_embeddings, sorted_pred_pos_one_hots, sorted_pred_sent_len_list, sorted_pose, sorted_m_length)
+
+        pose = pose.cuda().float()
+
+        et, em = eval_wrapper.get_co_embeddings(word_embeddings, pos_one_hots, sent_len, pose, m_length)
+        temp_R, temp_match = calculate_R_precision(em.cpu().numpy(), et.cpu().numpy(), top_k=3, sum_all=True)
+        R_precision_real += temp_R
+        matching_score_real += temp_match
+        temp_R, temp_match = calculate_R_precision(em_pred.cpu().numpy(), et_pred.cpu().numpy(),  top_k=3, sum_all=True)
+        R_precision += temp_R
+        matching_score_pred += temp_match
+
+        nb_sample += bs
+
+    R_precision_real = R_precision_real / nb_sample
+    R_precision = R_precision / nb_sample
+
+    matching_score_real = matching_score_real / nb_sample
+    matching_score_pred = matching_score_pred / nb_sample
+
+    bleu1, bleu4, rouge, cider = calculate_bleu_rouge_cider(ref_text_list=all_captions_list, hyp_text_list=generated_texts_list)
+
+    bert_score = evaluate_bert_score(generated_texts_list, all_captions_list)
+
+    msg = f"R_precision_real. {R_precision_real}, R_precision. {R_precision}," \
+          f" MM_Dist_real. {matching_score_real}, MM_Dist_pred. {matching_score_pred}, " \
+          f"Bleu@1. {bleu1}, Bleu@4. {bleu4}, " \
+          f"Rouge. {rouge}, Cider. {cider}, " \
+          f"BertScore. {bert_score}."
+    logger.info(msg)
+
+    model.train()
+    return R_precision[0], R_precision[1], R_precision[2], matching_score_pred, bleu1, bleu4, rouge, cider, bert_score, logger
+
+
+
 def euclidean_distance_matrix(matrix1, matrix2):
     """
         Params:
@@ -353,4 +490,51 @@ def calculate_frechet_feature_distance(feature_list1, feature_list2):
     )
     return dist
 
+
+
+def calculate_bleu_rouge_cider(ref_text_list, hyp_text_list):
+    metrics = [
+        load_metric("bleu", resulting_name="bleu_1", compute_kwargs={"max_order": 1}),
+        load_metric("bleu", resulting_name="bleu_4", compute_kwargs={"max_order": 4}),
+        load_metric("rouge"),
+        load_metric("cider"),
+    ]
+    nlg_evaluator = NLGMetricverse(metrics)
+    scores = nlg_evaluator(predictions=hyp_text_list,
+                                references=ref_text_list)
+
+    return scores['bleu_1']['score'], scores['bleu_4']['score'], \
+           scores['rouge']['rougeL'], scores['cider']['score']
+
+
+
+def evaluate_bert_score(text_list1, text_list2):
+    print('========== Evaluating BERT Score ==========')
+    P, R, F1 = score(text_list1,
+                     text_list2,
+                     lang='en',
+                     rescale_with_baseline=True,
+                     idf=True,
+                     device='cuda:0',
+                     verbose=True)
+
+    return F1.mean().item()
+
+
+
+def _process_text(sentence, nlp):
+    sentence = sentence.replace('-', '')
+    doc = nlp(sentence)
+    word_list = []
+    pos_list = []
+    for token in doc:
+        word = token.text
+        if not word.isalpha():
+            continue
+        if (token.pos_ == 'NOUN' or token.pos_ == 'VERB') and (word != 'left'):
+            word_list.append(token.lemma_)
+        else:
+            word_list.append(word)
+        pos_list.append(token.pos_)
+    return word_list, pos_list
 
