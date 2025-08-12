@@ -6,9 +6,9 @@ sys.path.append(str(wd))
 
 import torch
 import numpy as np
-import models.vqvae as vqvae            # TODO
-from dataloader.tokenizer_loader import DATALoader            # TODO
-from options import option            # TODO
+import models.vqvae as vqvae
+from dataloader.tokenizer_loader import DATALoader
+from options import option
 
 args = option.get_args_parser()
 args.vq_dir = "./dataset/HumanML3D/VQVAE"
@@ -41,5 +41,6 @@ for batch in token_loader:
     pose = pose.cuda().float() # bs, nb_joints, joints_dim, seq_len
     target = net.encode(pose)
     target = target.cpu().numpy()
+
 
     np.save(os.path.join(args.vq_dir, name[0] +'.npy'), target[0])
