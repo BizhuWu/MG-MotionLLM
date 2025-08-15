@@ -3,6 +3,7 @@ from torch.utils import data
 import numpy as np
 from os.path import join as pjoin
 import random
+import json
 import codecs as cs
 from tqdm import tqdm
 
@@ -192,6 +193,222 @@ class Text2MotionDataset(data.Dataset):
 
         return word_embeddings, pos_one_hots, caption, sent_len, motion, m_length, '_'.join(tokens), name
 
+
+
+'''For use of training text-2-motion generative model'''
+class Text2MotionDataset_withMotionScript(data.Dataset):
+    def __init__(self, dataset_name, split, w_vectorizer, feat_bias=5, max_text_len=20, unit_length=4):
+
+        self.max_length = 20
+        self.pointer = 0
+        self.dataset_name = dataset_name
+        self.max_text_len = max_text_len
+        self.unit_length = unit_length
+        self.w_vectorizer = w_vectorizer
+
+        if dataset_name == 't2m':
+            self.data_root = './dataset/HumanML3D'
+            self.motion_dir = pjoin(self.data_root, 'new_joint_vecs')
+            self.text_dir = pjoin(self.data_root, 'texts')
+            self.finemotion_text_dir = pjoin(self.data_root, 'finemotion_texts')
+            self.joints_num = 22
+            radius = 4
+            fps = 20
+            self.max_motion_length = 196
+            dim_pose = 263
+            kinematic_chain = paramUtil.t2m_kinematic_chain
+            self.meta_dir = './checkpoints/t2m/VQVAEV3_CB1024_CMT_H1024_NRES3/meta'
+        elif dataset_name == 'kit':
+            self.data_root = './dataset/KIT-ML'
+            self.motion_dir = pjoin(self.data_root, 'new_joint_vecs')
+            self.text_dir = pjoin(self.data_root, 'texts')
+            self.joints_num = 21
+            radius = 240 * 8
+            fps = 12.5
+            dim_pose = 251
+            self.max_motion_length = 196
+            kinematic_chain = paramUtil.kit_kinematic_chain
+            self.meta_dir = './checkpoints/kit/Decomp_SP001_SM001_H512/meta'
+
+        mean = np.load(pjoin(self.meta_dir, 'mean.npy'))
+        std = np.load(pjoin(self.meta_dir, 'std.npy'))
+
+        # detailed text for motions
+        BPMSD_auto_file = pjoin(self.finemotion_text_dir, 'BPMSD_auto.json')
+        with open(BPMSD_auto_file, 'r') as f:
+            BPMSD_dict = json.load(f)
+
+        BPMSD_human_file = pjoin(self.finemotion_text_dir, 'BPMSD_human.json')
+        with open(BPMSD_human_file, 'r') as f:
+            BPMSD_human_dict = json.load(f)
+        BPMSD_dict.update(BPMSD_human_dict)
+
+        split_file = pjoin(self.data_root, f'{split}.txt')
+
+        min_motion_len = 40 if self.dataset_name == 't2m' else 24
+
+        joints_num = self.joints_num
+
+        data_dict = {}
+        id_list = []
+        with cs.open(split_file, 'r') as f:
+            for line in f.readlines():
+                id_list.append(line.strip())
+
+        new_name_list = []
+        length_list = []
+        for name in tqdm(id_list):
+            try:
+                motion = np.load(pjoin(self.motion_dir, name + '.npy'))
+                if (len(motion)) < min_motion_len or (len(motion) >= 200):
+                    continue
+                text_data = []
+                flag = False
+                with cs.open(pjoin(self.text_dir, name + '.txt')) as f:
+                    for line in f.readlines():
+                        text_dict = {}
+                        line_split = line.strip().split('#')
+                        caption = line_split[0]
+                        tokens = line_split[1].split(' ')
+                        f_tag = float(line_split[2])
+                        to_tag = float(line_split[3])
+                        f_tag = 0.0 if np.isnan(f_tag) else f_tag
+                        to_tag = 0.0 if np.isnan(to_tag) else to_tag
+
+                        text_dict['tokens'] = tokens
+
+                        if f_tag == 0.0 and to_tag == 0.0:
+
+                            bodyPart_text_list = BPMSD_dict[name]
+
+                            summary_detail_text_dict = text_dict.copy()
+                            summary_detail_text_dict['summary'] = caption
+                            summary_detail_text_dict['detail'] = bodyPart_text_list
+                            text_data.append(summary_detail_text_dict)
+
+                            flag = True
+
+                        else:
+                            try:
+                                n_motion = motion[int(f_tag * fps): int(to_tag * fps)]
+                                if (len(n_motion)) < min_motion_len or (len(n_motion) >= 200):
+                                    continue
+
+                                bodyPart_text_list = BPMSD_dict[name][int(f_tag / 0.5): int(to_tag / 0.5)]
+
+                                text_data_new = []
+
+                                # summary + detail
+                                summary_detail_text_dict = text_dict.copy()
+                                summary_detail_text_dict['summary'] = caption
+                                summary_detail_text_dict['detail'] = bodyPart_text_list
+                                text_data_new.append(summary_detail_text_dict)
+
+                                new_name = random.choice('ABCDEFGHIJKLMNOPQRSTUVW') + '_' + name
+                                while new_name in data_dict:
+                                    new_name = random.choice('ABCDEFGHIJKLMNOPQRSTUVW') + '_' + name
+
+                                data_dict[new_name] = {'motion': n_motion,
+                                                       'length': len(n_motion),
+                                                       'text': text_data_new}
+                                new_name_list.append(new_name)
+                                length_list.append(len(n_motion))
+                            except:
+                                print(line_split)
+                                print(line_split[2], line_split[3], f_tag, to_tag, name)
+                                # break
+
+                if flag:
+                    data_dict[name] = {'motion': motion,
+                                       'length': len(motion),
+                                       'text': text_data}
+                    new_name_list.append(name)
+                    length_list.append(len(motion))
+            except Exception as e:
+                # print(e)
+                pass
+
+        name_list, length_list = zip(*sorted(zip(new_name_list, length_list), key=lambda x: x[1]))
+        self.mean = mean
+        self.std = std
+        self.length_arr = np.array(length_list)
+        self.data_dict = data_dict
+        self.name_list = name_list
+        self.reset_max_len(self.max_length)
+
+    def reset_max_len(self, length):
+        assert length <= self.max_motion_length
+        self.pointer = np.searchsorted(self.length_arr, length)
+        print("Pointer Pointing at %d" % self.pointer)
+        self.max_length = length
+
+    def inv_transform(self, data):
+        return data * self.std + self.mean
+
+    def forward_transform(self, data):
+        return (data - self.mean) / self.std
+
+    def __len__(self):
+        return len(self.data_dict) - self.pointer
+
+    def __getitem__(self, item):
+        idx = self.pointer + item
+        name = self.name_list[idx]
+        data = self.data_dict[name]
+        motion, m_length, text_list = data['motion'], data['length'], data['text']
+        # Randomly select a caption
+        text_data = random.choice(text_list)
+        summary = text_data['summary']
+        bodyPart_text_list = text_data['detail'][:]
+        tokens = text_data['tokens']
+
+        if len(tokens) < self.max_text_len:
+            # pad with "unk"
+            tokens = ['sos/OTHER'] + tokens + ['eos/OTHER']
+            sent_len = len(tokens)
+            tokens = tokens + ['unk/OTHER'] * (self.max_text_len + 2 - sent_len)
+        else:
+            # crop
+            tokens = tokens[:self.max_text_len]
+            tokens = ['sos/OTHER'] + tokens + ['eos/OTHER']
+            sent_len = len(tokens)
+        pos_one_hots = []
+        word_embeddings = []
+        for token in tokens:
+            word_emb, pos_oh = self.w_vectorizer[token]
+            pos_one_hots.append(pos_oh[None, :])
+            word_embeddings.append(word_emb[None, :])
+        pos_one_hots = np.concatenate(pos_one_hots, axis=0)
+        word_embeddings = np.concatenate(word_embeddings, axis=0)
+
+        # Each item in bodyPart_text_list corresponds to 0.5 seconds, i.e., 10 frames of motion.
+        # Here, we ensure strict alignment between motion tokens and detailed body part movement descriptions.
+        m_length = (m_length // 20) * 20        # 20 is the least common multiple of 10 (corresponds to 1 item in bodyPart_text_list) and 4 (self.unit_length, also the frames of a singel token).
+        motion = motion[:m_length]
+        bodyPart_text_list = bodyPart_text_list[:int(m_length/10)]
+
+        for i in range(len(bodyPart_text_list)):
+            item = bodyPart_text_list[i]
+            if item == "":
+                bodyPart_text_list[i] = '<Motionless>'
+        long_text = (" <SEP> ").join(bodyPart_text_list)
+        detail = long_text
+
+        summary = '### Motion Summary ###\n' + summary
+        detail = '### Motion Script ###\n' + detail
+
+        caption = '\n\n' + summary + '\n\n'
+        caption = caption + detail
+
+        "Z Normalization"
+        motion = (motion - self.mean) / self.std
+
+        if m_length < self.max_motion_length:
+            motion = np.concatenate([motion,
+                                     np.zeros((self.max_motion_length - m_length, motion.shape[1]))
+                                     ], axis=0)
+
+        return word_embeddings, pos_one_hots, caption, sent_len, motion, m_length, '_'.join(tokens), name
 
 
 
@@ -392,6 +609,20 @@ def DATALoader(dataset_name, split,
                num_workers=8, unit_length=4):
     val_loader = torch.utils.data.DataLoader(
         Text2MotionDataset(dataset_name, split, w_vectorizer, unit_length=unit_length),
+        batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        collate_fn=collate_fn,
+        drop_last=True)
+    return val_loader
+
+
+
+def DATALoader_tdt2m(dataset_name, split,
+               batch_size, w_vectorizer,
+               num_workers=8, unit_length=4):
+    val_loader = torch.utils.data.DataLoader(
+        Text2MotionDataset_withMotionScript(dataset_name, split, w_vectorizer, unit_length=unit_length),
         batch_size,
         shuffle=True,
         num_workers=num_workers,
