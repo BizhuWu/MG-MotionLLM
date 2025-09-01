@@ -26,4 +26,4 @@ def get_args_parser():
     parser.add_argument('--quantbeta', type=float, default=1.0, help='dataset directory')
 
 
-    return parser.parse_args()
+    return parser
