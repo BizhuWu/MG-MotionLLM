@@ -16,16 +16,13 @@ from torch import cuda
 
 if __name__ == "__main__":
 
-    args = option.get_args_parser()
-
-
+    parser = option.get_args_parser()
 
     # set hyperparameters
-    parser = argparse.ArgumentParser(description="Test on the Motion-to-Text task.")
     parser.add_argument("--model_name", type=str, default="./m2t-ft-from-t5-base/checkpoint-300000/", help="Trained model name or directory")
-    parser.add_argument("--logger_dir", type=str, default="./m2t-ft-from-t5-base/checkpoint-300000/", help="Directory to save test log")
     parser.add_argument("--prompt", type=str, default="Generate text: ", help="Motion-to-Text Prompt")
-    user_args = parser.parse_args()
+
+    args = parser.parse_args()
 
 
 
@@ -70,14 +67,14 @@ if __name__ == "__main__":
 
 
     # set logger
-    logger = utils_model.get_test_logger(user_args.logger_dir, 'test_m2t_run.log')
+    logger = utils_model.get_test_logger(args.model_name, 'test_m2t_run.log')
     logger.info(json.dumps(vars(args), indent=4, sort_keys=True))
 
 
 
     # motion aware language model setting
-    tokenizer = T5Tokenizer.from_pretrained(user_args.model_name)
-    model = T5ForConditionalGeneration.from_pretrained(user_args.model_name)
+    tokenizer = T5Tokenizer.from_pretrained(args.model_name)
+    model = T5ForConditionalGeneration.from_pretrained(args.model_name)
 
     device = 'cuda' if cuda.is_available() else 'cpu'
     model = model.to(device)
@@ -105,7 +102,7 @@ if __name__ == "__main__":
                                 tokenizer,
                                 w_vectorizer,
                                 eval_wrapper=eval_wrapper,
-                                instruction=user_args.prompt,
+                                instruction=args.prompt,
                                 max_new_tokens=40)
         bleu1.append(best_bleu1)
         bleu4.append(best_bleu4)
