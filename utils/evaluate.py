@@ -357,6 +357,93 @@ def evaluation_m2t(val_loader, vqvae, model, logger, tokenizer, w_vectorizer, ev
 
 
 
+@torch.no_grad()
+def evaluation_m2dt(val_loader, vqvae, model, logger, tokenizer, instruction, max_new_tokens):
+    model.eval()
+
+    text_gt_list = []
+    text_pred_list = []
+    text_gt_snippet_list = []
+    text_pred_snippet_list = []
+
+    for batch in tqdm(val_loader):
+        gt_detailed_text, pose, m_length, name = batch
+
+        bs, seq = pose.shape[:2]
+
+        for k in range(bs):
+            # tokenize motion
+            motion = pose[k].clone()
+            motion = motion[:m_length[k]]
+            motion = motion.unsqueeze(0).cuda()
+            tokenized_motion = vqvae.encode(motion)
+            tokenized_motion = tokenized_motion.cpu().numpy()[0]
+            tokenized_motion = tokenized_motion.reshape(-1).tolist()
+
+            motion_string = '<Motion Tokens>'
+            for token in tokenized_motion:
+                motion_string += ('<' + str(token) + '>')
+            motion_string += '</Motion Tokens>'
+
+            prompt = instruction + motion_string
+
+            input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to('cuda', dtype=torch.long)
+            outputs = model.generate(
+                input_ids,
+                max_length=max_new_tokens,
+                num_beams=1,
+                do_sample=False,
+            )
+            output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            output_text = output_text.split('### Motion Script ###')[1].strip()
+
+            gt_detailed_text_k_snippet_list = gt_detailed_text[k].split(" <SEP> ")
+            output_text_k_snippet_list = output_text.split(" <SEP> ")
+
+            # sequence-level
+            text_pred_list.append(output_text)
+            text_gt_list.append(gt_detailed_text[k])
+
+            # snippet-level
+            for item in gt_detailed_text_k_snippet_list:
+                text_gt_snippet_list.append(item)
+
+            for item in output_text_k_snippet_list[:len(gt_detailed_text_k_snippet_list)]:
+                text_pred_snippet_list.append(item)
+
+            while len(text_pred_snippet_list) < len(text_gt_snippet_list):
+                text_pred_snippet_list.append("")
+
+            while len(text_gt_snippet_list) < len(text_pred_snippet_list):
+                text_gt_snippet_list.append("")
+
+    bleu1, bleu4, bleu7, rouge, cider = calculate_bleu147_rouge_cider(ref_text_list=text_gt_list,
+                                                                      hyp_text_list=text_pred_list)
+    s_bleu1, s_bleu4, s_bleu7, s_rouge, s_cider = calculate_bleu147_rouge_cider(ref_text_list=text_gt_snippet_list,
+                                                                                hyp_text_list=text_pred_snippet_list)
+
+    bert_score = evaluate_bert_score(text_pred_list, text_gt_list)
+    s_bert_score = evaluate_bert_score(text_pred_snippet_list, text_gt_snippet_list)
+
+    logger.info('Sequence-level:')
+    msg = f"Bleu@1. {bleu1}, Bleu@4. {bleu4}, Bleu@7. {bleu7}, " \
+          f"Rouge. {rouge}, Cider. {cider}, BertScore. {bert_score}"
+    print(msg)
+    logger.info(msg)
+
+    logger.info('Snippet-level:')
+    msg = f"Bleu@1. {s_bleu1}, Bleu@4. {s_bleu4}, Bleu@7. {s_bleu7}, " \
+          f"Rouge. {s_rouge}, Cider. {s_cider}, BertScore. {s_bert_score}"
+    print(msg)
+    logger.info(msg)
+
+    model.train()
+    return bleu1, bleu4, bleu7, rouge, cider, bert_score, \
+           s_bleu1, s_bleu4, s_bleu7, s_rouge, s_cider, s_bert_score, \
+           logger
+
+
+
 def euclidean_distance_matrix(matrix1, matrix2):
     """
         Params:
@@ -504,6 +591,23 @@ def calculate_bleu_rouge_cider(ref_text_list, hyp_text_list):
                                 references=ref_text_list)
 
     return scores['bleu_1']['score'], scores['bleu_4']['score'], \
+           scores['rouge']['rougeL'], scores['cider']['score']
+
+
+
+def calculate_bleu147_rouge_cider(ref_text_list, hyp_text_list):
+    metrics = [
+        load_metric("bleu", resulting_name="bleu_1", compute_kwargs={"max_order": 1}),
+        load_metric("bleu", resulting_name="bleu_4", compute_kwargs={"max_order": 4}),
+        load_metric("bleu", resulting_name="bleu_7", compute_kwargs={"max_order": 7}),
+        load_metric("rouge"),
+        load_metric("cider"),
+    ]
+    nlg_evaluator = NLGMetricverse(metrics)
+    scores = nlg_evaluator(predictions=hyp_text_list,
+                                references=ref_text_list)
+
+    return scores['bleu_1']['score'], scores['bleu_4']['score'], scores['bleu_7']['score'], \
            scores['rouge']['rougeL'], scores['cider']['score']
 
 
