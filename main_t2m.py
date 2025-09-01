@@ -14,17 +14,11 @@ from transformers import (
 from utils.instruction_templates import t2m_template_list
 
 
-
-
-
 # Set random seeds and deterministic pytorch for reproducibility
 def set_seed(seed=42):
     torch.manual_seed(seed)
     np.random.seed(seed)
     torch.backends.cudnn.deterministic = True
-
-
-
 
 
 # Load model and tokenizer
@@ -46,9 +40,6 @@ def load_model_and_tokenizer(model_name="google-t5/t5-base"):
     return tokenizer, model
 
 
-
-
-
 # 3. load data
 class T2MDataset(Dataset):
     def __init__(self, tokenizer, split='train', source_len=256, target_len=256, unit_length=4):
@@ -61,14 +52,12 @@ class T2MDataset(Dataset):
         fps = 20
         dim_pose = 263
         self.unit_length = unit_length
-        
+
         self.tokenizer = tokenizer
         self.source_len = source_len
         self.target_len = target_len
 
-
-
-        split_file = pjoin(self.data_root, split+'.txt')
+        split_file = pjoin(self.data_root, split + '.txt')
         id_list = []
         with cs.open(split_file, 'r') as f:
             for line in f.readlines():
@@ -130,8 +119,6 @@ class T2MDataset(Dataset):
         self.data_dict = data_dict
         self.name_list = new_name_list
 
-
-
     def __len__(self):
         """returns the length of dataframe"""
         return len(self.data_dict)
@@ -143,8 +130,7 @@ class T2MDataset(Dataset):
         m_tokens = random.choice(m_token_list)
 
         text_data = random.choice(text_list)
-        caption= text_data['caption']
-
+        caption = text_data['caption']
 
         coin = np.random.choice([False, False, True])
         if coin:
@@ -155,7 +141,6 @@ class T2MDataset(Dataset):
             else:
                 m_tokens = m_tokens[1:]
 
-
         if self.split == 'train':
             instruction = random.choice(t2m_template_list)
             if random.random() < 0.5:
@@ -164,23 +149,17 @@ class T2MDataset(Dataset):
             instruction = 'Generate motion: <Caption_Placeholder>'
         source_text = instruction.replace('<Caption_Placeholder>', caption)
 
-
         target_text = '<Motion Tokens>'
         for token in m_tokens.reshape(-1):
             target_text += ('<' + str(token) + '>')
         target_text += '</Motion Tokens>'
 
-
         model_inputs = tokenizer(source_text, padding='longest', max_length=self.source_len, truncation=True)
         labels = tokenizer(target_text, padding='longest', max_length=self.target_len, truncation=True)
-
 
         model_inputs["labels"] = labels["input_ids"]
 
         return model_inputs
-
-
-
 
 
 if __name__ == "__main__":
@@ -189,7 +168,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train on the Text-to-Motion task.")
     parser.add_argument("--model_name", type=str, default="google-t5/t5-base", help="Pretrained model name or directory")
     parser.add_argument("--output_dir", type=str, default="./t2m-ft-from-t5-base", help="Directory to save model")
-    parser.add_argument("--resume_from_checkpoint", type=str, default=None, help="Directory to save model")
+    parser.add_argument("--resume_from_checkpoint", type=str, default=None, help="Directory to resume model")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
     parser.add_argument("--max_steps", type=int, default=300000, help="Max training steps")
     parser.add_argument("--eval_steps", type=int, default=10000, help="Evaluation interval")
@@ -199,16 +178,11 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()
 
-
     # set seed
     set_seed(args.seed)
 
-
-
     # load model and tokenizer
     tokenizer, model = load_model_and_tokenizer(args.model_name)
-
-
 
     # load dataset
     print("[Data]: Loading datasets...")
@@ -216,8 +190,6 @@ if __name__ == "__main__":
     val_dataset = T2MDataset(tokenizer, split='val')
 
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
-
-
 
     # set llm training hyperparameter & trainer
     llm_training_args = Seq2SeqTrainingArguments(
@@ -246,8 +218,6 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
     )
 
-
-
     # start training
     if args.resume_from_checkpoint:
         trainer.train(
@@ -255,4 +225,3 @@ if __name__ == "__main__":
         )
     else:
         trainer.train()
-
