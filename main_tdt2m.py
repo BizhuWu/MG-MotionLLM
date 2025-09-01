@@ -177,7 +177,7 @@ class TDT2MDataset(Dataset):
         if isAug and m_tokens.shape[0] > 5:
             # We augment motions in units of 5 tokens,
             # ensuring strict alignment between motion tokens and detailed body part movement descriptions.
-            possible_idx = list(range(0, m_tokens.shape[0]+1, 5))
+            possible_idx = list(range(0, m_tokens.shape[0], 5))
             chosen_idxes = random.sample(possible_idx, 2)
             start_idx = min(chosen_idxes)
             end_idx = max(chosen_idxes)
@@ -187,7 +187,6 @@ class TDT2MDataset(Dataset):
             end_text_idx = int(0.4 * end_idx)
 
             bodyPart_text_list = bodyPart_text_list[start_text_idx: end_text_idx]
-            bodyPart_text_list = bodyPart_text_list[:int(m_tokens.shape[0]/2.5)]
 
         for i in range(len(bodyPart_text_list)):
             bodyPart_text_item = bodyPart_text_list[i]
@@ -226,10 +225,9 @@ if __name__ == "__main__":
 
     # set hyperparameters
     parser = argparse.ArgumentParser(description="Train on the (Text, Detailed Text)-to-Motion task.")
-    parser.add_argument("--model_name", type=str, default="google-t5/t5-base",
-                        help="Pretrained model name or directory")
+    parser.add_argument("--model_name", type=str, default="google-t5/t5-base", help="Pretrained model name or directory")
     parser.add_argument("--output_dir", type=str, default="./tdt2m-ft-from-t5-base", help="Directory to save model")
-    parser.add_argument("--resume_from_checkpoint", type=str, default=None, help="Directory to save model")
+    parser.add_argument("--resume_from_checkpoint", type=str, default=None, help="Directory to resume model")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help="Batch size")
     parser.add_argument("--max_steps", type=int, default=300000, help="Max training steps")
