@@ -20,7 +20,6 @@ if __name__ == "__main__":
 
     # set hyperparameters
     parser.add_argument("--model_name", type=str, default="./t2m-ft-from-t5-base/checkpoint-300000/", help="Trained model name or directory")
-    parser.add_argument("--logger_dir", type=str, default="./t2m-ft-from-t5-base/checkpoint-300000/", help="Directory to save test log")
     parser.add_argument("--prompt", type=str, default="Generate motion: ", help="Text-to-Motion Prompt")
 
     args = parser.parse_args()
@@ -68,7 +67,7 @@ if __name__ == "__main__":
 
 
     # set logger
-    logger = utils_model.get_test_logger(args.logger_dir, 'test_t2m_run.log')
+    logger = utils_model.get_test_logger(args.model_name, 'test_t2m_run.log')
     logger.info(json.dumps(vars(args), indent=4, sort_keys=True))
 
 
