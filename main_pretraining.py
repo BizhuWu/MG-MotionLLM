@@ -64,11 +64,10 @@ class GSPretrainingDataset(Dataset):
         with open(BPMSD_auto_file, 'r') as f:
             BPMSD_dict = json.load(f)
 
-        # TODO
-        # BPMSD_human_file = pjoin(self.finemotion_text_dir, 'BPMSD_human.json')
-        # with open(BPMSD_human_file, 'r') as f:
-        #     BPMSD_human_dict = json.load(f)
-        # BPMSD_dict.update(BPMSD_human_dict)
+        BPMSD_human_file = pjoin(self.finemotion_text_dir, 'BPMSD_human.json')
+        with open(BPMSD_human_file, 'r') as f:
+            BPMSD_human_dict = json.load(f)
+        BPMSD_dict.update(BPMSD_human_dict)
 
         split_file = pjoin(self.data_root, split + '.txt')
         id_list = []
