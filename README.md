@@ -81,6 +81,7 @@ For pretrained **MG-MotionLLM** models, you have two ways to download:
 
 | Model | Link |
 |---------|---------|
+| GSPretrained-base | [GSPretrained-base](https://huggingface.co/wbz0505/GSPretrained-base) |
 | t2m-ft-from-GSPretrained-base | [t2m-ft-from-GSPretrained-base](https://huggingface.co/wbz0505/t2m-ft-from-GSPretrained-base) |
 | m2t-ft-from-GSPretrained-base | [m2t-ft-from-GSPretrained-base](https://huggingface.co/wbz0505/m2t-ft-from-GSPretrained-base) |
 
