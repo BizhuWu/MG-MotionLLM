@@ -81,21 +81,21 @@ For pretrained **MG-MotionLLM** models, you have two ways to download:
 
 | Model | Link |
 |---------|---------|
-| GSPretrained-small |  |
+| GSPretrained-small | [GSPretrained-small](https://huggingface.co/wbz0505/GSPretrained-small) |
 | t2m-ft-from-GSPretrained-small | [t2m-ft-from-GSPretrained-small](https://huggingface.co/wbz0505/t2m-ft-from-GSPretrained-small) |
 | m2t-ft-from-GSPretrained-small | [m2t-ft-from-GSPretrained-small](https://huggingface.co/wbz0505/m2t-ft-from-GSPretrained-small) |
 | tdt2m-ft-from-GSPretrained-small | [tdt2m-ft-from-GSPretrained-small](https://huggingface.co/wbz0505/tdt2m-ft-from-GSPretrained-small) |
-| m2dt-ft-from-GSPretrained-small |  |
+| m2dt-ft-from-GSPretrained-small | [m2dt-ft-from-GSPretrained-small](https://huggingface.co/wbz0505/m2dt-ft-from-GSPretrained-small) |
 | GSPretrained-base | [GSPretrained-base](https://huggingface.co/wbz0505/GSPretrained-base) |
 | t2m-ft-from-GSPretrained-base | [t2m-ft-from-GSPretrained-base](https://huggingface.co/wbz0505/t2m-ft-from-GSPretrained-base) |
 | m2t-ft-from-GSPretrained-base | [m2t-ft-from-GSPretrained-base](https://huggingface.co/wbz0505/m2t-ft-from-GSPretrained-base) |
 | tdt2m-ft-from-GSPretrained-base | [tdt2m-ft-from-GSPretrained-base](https://huggingface.co/wbz0505/tdt2m-ft-from-GSPretrained-base) |
 | m2dt-ft-from-GSPretrained-base | [m2dt-ft-from-GSPretrained-base](https://huggingface.co/wbz0505/m2dt-ft-from-GSPretrained-base) |
-| GSPretrained-large |  |
+| GSPretrained-large | [GSPretrained-large](https://huggingface.co/wbz0505/GSPretrained-large) |
 | t2m-ft-from-GSPretrained-large | [t2m-ft-from-GSPretrained-large](https://huggingface.co/wbz0505/t2m-ft-from-GSPretrained-large) |
 | m2t-ft-from-GSPretrained-large | [m2t-ft-from-GSPretrained-large](https://huggingface.co/wbz0505/m2t-ft-from-GSPretrained-large) |
 | tdt2m-ft-from-GSPretrained-large | [tdt2m-ft-from-GSPretrained-large](https://huggingface.co/wbz0505/tdt2m-ft-from-GSPretrained-large) |
-| m2dt-ft-from-GSPretrained-large |  |
+| m2dt-ft-from-GSPretrained-large | [m2dt-ft-from-GSPretrained-large](https://huggingface.co/wbz0505/m2dt-ft-from-GSPretrained-large) |
 
 2. use code to download them. For example,
 ```python
