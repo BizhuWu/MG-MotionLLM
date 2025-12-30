@@ -42,11 +42,15 @@ class VQMotionDataset(data.Dataset):
         mean = np.load(pjoin(self.meta_dir, 'mean.npy'))
         std = np.load(pjoin(self.meta_dir, 'std.npy'))
         
-        split_file = pjoin(self.data_root, 'train_val.txt')
+        train_split_file = pjoin(self.data_root, 'train.txt')
+        val_split_file = pjoin(self.data_root, 'val.txt')
         
         data_dict = {}
         id_list = []
-        with cs.open(split_file, 'r') as f:
+        with cs.open(train_split_file, 'r') as f:
+            for line in f.readlines():
+                id_list.append(line.strip())
+        with cs.open(val_split_file, 'r') as f:
             for line in f.readlines():
                 id_list.append(line.strip())
 
@@ -131,11 +135,15 @@ class VQMotionDataset_start0(data.Dataset):
         mean = np.load(pjoin(self.meta_dir, 'mean.npy'))
         std = np.load(pjoin(self.meta_dir, 'std.npy'))
 
-        split_file = pjoin(self.data_root, 'train_val.txt')
-
+        train_split_file = pjoin(self.data_root, 'train.txt')
+        val_split_file = pjoin(self.data_root, 'val.txt')
+        
         data_dict = {}
         id_list = []
-        with cs.open(split_file, 'r') as f:
+        with cs.open(train_split_file, 'r') as f:
+            for line in f.readlines():
+                id_list.append(line.strip())
+        with cs.open(val_split_file, 'r') as f:
             for line in f.readlines():
                 id_list.append(line.strip())
 
