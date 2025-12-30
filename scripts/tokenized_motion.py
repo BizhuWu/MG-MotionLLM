@@ -11,8 +11,9 @@ from dataloader.tokenizer_loader import DATALoader
 from options import option
 
 args = option.get_args_parser()
+args = args.parse_args()
+
 args.vq_dir = "./dataset/HumanML3D/VQVAE"
-os.makedirs(args.out_dir, exist_ok = True)
 os.makedirs(args.vq_dir, exist_ok = True)
 
 token_loader = DATALoader(args.dataname, 1, unit_length=2**args.down_t)
@@ -44,3 +45,4 @@ for batch in token_loader:
 
 
     np.save(os.path.join(args.vq_dir, name[0] +'.npy'), target[0])
+
