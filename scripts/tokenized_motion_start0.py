@@ -15,8 +15,9 @@ from dataloader.tokenizer_loader import DATALoader_start0
 from options import option
 
 args = option.get_args_parser()
+args = args.parse_args()
+
 args.vq_dir = "./dataset/HumanML3D/VQVAE_start0"
-os.makedirs(args.out_dir, exist_ok = True)
 os.makedirs(args.vq_dir, exist_ok = True)
 
 token_loader = DATALoader_start0(args.dataname, 1, unit_length=2**args.down_t)
@@ -45,5 +46,6 @@ for batch in token_loader:
     pose = pose.cuda().float() # bs, nb_joints, joints_dim, seq_len
     target = net.encode(pose)
     target = target.cpu().numpy()
+
 
     np.save(os.path.join(args.vq_dir, name[0] +'.npy'), target[0])
