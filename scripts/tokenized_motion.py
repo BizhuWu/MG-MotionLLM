@@ -44,5 +44,6 @@ for batch in token_loader:
     target = target.cpu().numpy()
 
 
-    np.save(os.path.join(args.vq_dir, name[0] +'.npy'), target[0])
+    np.save(os.path.join(args.vq_dir, name[0] +'.npy'), target)
+
 
