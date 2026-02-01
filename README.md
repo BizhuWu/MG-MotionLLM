@@ -71,7 +71,6 @@ Once downloaded, you should have a folder like this:
 ```
 MG-MotionLLM/checkpoints
 ├── pretrained_vqvae
-│   ├── kit.pth
 │   └── t2m.pth
 ```
 
@@ -99,11 +98,18 @@ For pretrained **MG-MotionLLM** models, you have two ways to download:
 
 2. use code to download them. For example,
 ```python
-from transformers import T5Tokenizer, T5ForConditionalGeneration
+from huggingface_hub import snapshot_download
 
-model_name = 'wbz0505/t2m-ft-from-GSPretrained-base'
-tokenizer = T5Tokenizer.from_pretrained(model_name)
-model = T5ForConditionalGeneration.from_pretrained(model_name)
+model_id = 'wbz0505/t2m-ft-from-GSPretrained-base'       # set the model name to be downloaded
+local_dir = "./t2m-ft-from-GSPretrained-base/"          # You can change the save dir here
+
+snapshot_download(
+    repo_id=model_id,
+    local_dir=local_dir,
+    local_dir_use_symlinks=False
+)
+
+print("Download complete!")
 ```
 
 
