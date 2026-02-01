@@ -3,7 +3,7 @@ cd checkpoints
 
 echo "The pretrained_vqvae will be stored in the './checkpoints' folder"
 echo "Downloading"
-gdown "https://drive.google.com/uc?id=1A4cfdodZbiENV75tR9IErei9yiZGlosT"
+gdown "https://drive.google.com/uc?id=1tOw9wiu6jkzBy-bLe2iy47KAjE50DgjP"
 
 echo "Extracting"
 unzip pretrained_vqvae.zip
